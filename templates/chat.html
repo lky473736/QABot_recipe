@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}레시피 챗봇 - 채팅{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <!-- Chat Area -->
+            <div class="col-lg-8 col-md-12">
+                <div class="chat-area">
+                    <!-- Chat Header -->
+                    <div class="chat-header">
+                        <div class="d-flex align-items-center">
+                            <div class="chat-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="chat-info">
+                                <h5 class="mb-0">레시피 챗봇</h5>
+                                <small class="text-muted">
+                                    <span class="status-indicator online"></span>
+                                    온라인
+                                </small>
+                            </div>
+                        </div>
+                        <div class="chat-actions">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="clearChat()">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Messages -->
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message bot-message">
+                            <div class="message-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                <div class="message-text">
+                                    안녕하세요! 레시피 챗봇입니다. 🍳<br>
+                                    요리 레시피나 재료에 대해 궁금한 것이 있으시면 언제든 물어보세요!
+                                </div>
+                                <div class="message-time">
+                                    방금 전
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Input -->
+                    <div class="chat-input">
+                        <div class="input-group">
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="messageInput" 
+                                   placeholder="메시지를 입력하세요... (예: 감자로 뭐 만들 수 있어?)"
+                                   autocomplete="off">
+                            <button class="btn btn-primary" type="button" id="sendButton" onclick="sendMessage()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="col-lg-4 col-md-12">
+                <div class="chat-sidebar">
+                    <!-- Quick Actions -->
+                    <div class="sidebar-section">
+                        <h6 class="sidebar-title">빠른 질문</h6>
+                        <div class="quick-actions">
+                            <button class="btn btn-outline-primary btn-sm w-100 mb-2" 
+                                    onclick="sendQuickMessage('오늘 뭐 먹을까?')">
+                                오늘 뭐 먹을까?
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm w-100 mb-2" 
+                                    onclick="sendQuickMessage('간단한 요리 추천해줘')">
+                                간단한 요리 추천
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm w-100 mb-2" 
+                                    onclick="sendQuickMessage('다이어트 요리가 뭐가 있어?')">
+                                다이어트 요리
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm w-100 mb-2" 
+                                    onclick="sendQuickMessage('국물 요리 추천해줘')">
+                                국물 요리
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Popular Ingredients -->
+                    <div class="sidebar-section">
+                        <h6 class="sidebar-title">인기 재료</h6>
+                        <div class="ingredient-tags">
+                            <span class="ingredient-tag" onclick="sendQuickMessage('감자로 뭐 만들 수 있어?')">감자</span>
+                            <span class="ingredient-tag" onclick="sendQuickMessage('닭고기로 뭐 만들 수 있어?')">닭고기</span>
+                            <span class="ingredient-tag" onclick="sendQuickMessage('두부로 뭐 만들 수 있어?')">두부</span>
+                            <span class="ingredient-tag" onclick="sendQuickMessage('계란으로 뭐 만들 수 있어?')">계란</span>
+                            <span class="ingredient-tag" onclick="sendQuickMessage('양파로 뭐 만들 수 있어?')">양파</span>
+                            <span class="ingredient-tag" onclick="sendQuickMessage('버섯으로 뭐 만들 수 있어?')">버섯</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Help -->
+                    <div class="sidebar-section">
+                        <h6 class="sidebar-title">도움말</h6>
+                        <div class="help-content">
+                            <p class="small text-muted mb-2">
+                                <strong>사용법:</strong>
+                            </p>
+                            <ul class="small text-muted">
+                                <li>"감자로 뭐 만들 수 있어?" - 재료 검색</li>
+                                <li>"김치찌개 만드는 법" - 레시피 조회</li>
+                                <li>"불고기 재료가 뭐야?" - 재료 확인</li>
+                                <li>"계란말이 칼로리" - 영양정보</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mb-0">답변을 생성하고 있습니다...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let isWaiting = false;
+
+// 페이지 로드 시 URL 파라미터 확인
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('q');
+    if (query) {
+        document.getElementById('messageInput').value = query;
+        sendMessage();
+    }
+});
+
+// 메시지 전송
+function sendMessage() {
+    if (isWaiting) return;
+    
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // 사용자 메시지 추가
+    addMessage(message, 'user');
+    input.value = '';
+    
+    // 로딩 표시
+    showLoading();
+    isWaiting = true;
+    
+    // API 호출
+    fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: message })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        isWaiting = false;
+        
+        if (data.success) {
+            addMessage(data.response, 'bot');
+        } else {
+            addMessage('죄송합니다. 오류가 발생했습니다: ' + data.error, 'bot');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        isWaiting = false;
+        console.error('Error:', error);
+        addMessage('서버 연결에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.', 'bot');
+    });
+}
+
+// 빠른 메시지 전송
+function sendQuickMessage(message) {
+    document.getElementById('messageInput').value = message;
+    sendMessage();
+}
+
+// 메시지 추가
+function addMessage(text, sender) {
+    const messagesContainer = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+    
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('ko-KR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    
+    if (sender === 'bot') {
+        messageDiv.innerHTML = `
+            <div class="message-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-content">
+                <div class="message-text">${text.replace(/\n/g, '<br>')}</div>
+                <div class="message-time">${timeString}</div>
+            </div>
+        `;
+    } else {
+        messageDiv.innerHTML = `
+            <div class="message-content">
+                <div class="message-text">${text.replace(/\n/g, '<br>')}</div>
+                <div class="message-time">${timeString}</div>
+            </div>
+            <div class="message-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+        `;
+    }
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// 로딩 표시
+function showLoading() {
+    const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
+    modal.show();
+}
+
+// 로딩 숨기기
+function hideLoading() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+    if (modal) {
+        modal.hide();
+    }
+}
+
+// 채팅 초기화
+function clearChat() {
+    if (confirm('채팅 내역을 모두 삭제하시겠습니까?')) {
+        const messagesContainer = document.getElementById('chatMessages');
+        messagesContainer.innerHTML = `
+            <div class="message bot-message">
+                <div class="message-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="message-content">
+                    <div class="message-text">
+                        안녕하세요! 레시피 챗봇입니다. 🍳<br>
+                        요리 레시피나 재료에 대해 궁금한 것이 있으시면 언제든 물어보세요!
+                    </div>
+                    <div class="message-time">방금 전</div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// 엔터키로 메시지 전송
+document.getElementById('messageInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+</script>
+{% endblock %}
