@@ -26,7 +26,7 @@ QA_DATASET_PATH = DATA_DIR / "qa_dataset.json"
 # 모델 설정
 MODEL_NAME = "beomi/kcbert-base"
 TRAINED_MODEL_DIR = MODEL_DIR / "trained_model"
-MAX_LENGTH = 512
+MAX_LENGTH = 300
 BATCH_SIZE = 8
 LEARNING_RATE = 2e-5
 NUM_EPOCHS = 3

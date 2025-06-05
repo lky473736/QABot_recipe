@@ -77,7 +77,7 @@ class TextPreprocessor:
         
         return list(set(keywords))
     
-    def tokenize_for_model(self, text: str, max_length: int = 512) -> Dict[str, Any]:
+    def tokenize_for_model(self, text: str, max_length: int = 300) -> Dict[str, Any]:
         """모델용 토크나이징"""
         if not self.tokenizer:
             raise ValueError("토크나이저가 로드되지 않았습니다. load_tokenizer()를 먼저 호출하세요.")
@@ -93,7 +93,7 @@ class TextPreprocessor:
         
         return encoded
     
-    def preprocess_qa_pair(self, question: str, answer: str, max_length: int = 512) -> Dict[str, Any]:
+    def preprocess_qa_pair(self, question: str, answer: str, max_length: int = 300) -> Dict[str, Any]:
         """QA 쌍 전처리"""
         # 텍스트 정리
         clean_question = self.normalize_question(question)

@@ -7,12 +7,13 @@
 import json
 import torch
 import torch.nn as nn
+from torch.optim import AdamW
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from transformers import (
     AutoTokenizer, AutoModel, 
     get_linear_schedule_with_warmup,
-    AdamW, AutoConfig
+    AutoConfig
 )
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -27,7 +28,7 @@ from config import *
 class QADataset(Dataset):
     """질문-답변 데이터셋"""
     
-    def __init__(self, qa_data: List[Dict[str, Any]], tokenizer, max_length: int = 512):
+    def __init__(self, qa_data: List[Dict[str, Any]], tokenizer, max_length: int = 300):
         self.qa_data = qa_data
         self.tokenizer = tokenizer
         self.max_length = max_length
@@ -92,7 +93,6 @@ class EnhancedRecipeChatbotModel(nn.Module):
         
         self.config = AutoConfig.from_pretrained(model_name)
         self.config.hidden_dropout_prob = hidden_dropout_prob
-        self.config.max_position_embeddings = 512  # ➕ 추가 이 부분!
 
         self.bert = AutoModel.from_pretrained(model_name, config=self.config, ignore_mismatched_sizes=True)
         
@@ -250,8 +250,8 @@ class EnhancedModelTrainer:
         print(f"✅ 검증 데이터: {len(val_data)}개")
         
         # 데이터셋 생성
-        self.train_dataset = QADataset(train_data, self.tokenizer, max_length=512)
-        self.val_dataset = QADataset(val_data, self.tokenizer, max_length=512)
+        self.train_dataset = QADataset(train_data, self.tokenizer, max_length=300)
+        self.val_dataset = QADataset(val_data, self.tokenizer, max_length=300)
         
         return self.train_dataset, self.val_dataset
     
