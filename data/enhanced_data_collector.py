@@ -1,67 +1,57 @@
 """
-개선된 식품안전처 조리식품 레시피 API 데이터 수집기
-문제점: 기존 136개 -> 목표: 1000개+ 수집
+농림축산식품 공공데이터포털 레시피 데이터 수집기
+- 레시피 기본정보, 재료정보, 과정정보 수집
+- 데이터 통합 및 검증
 """
 import requests
 import json
 import time
-import xmltodict
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import sys
 import os
-from urllib.parse import quote
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import *
 
-class ImprovedRecipeDataCollector:
+class MafraRecipeDataCollector:
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.base_url = FOOD_SAFETY_BASE_URL
-        self.service_id = RECIPE_SERVICE_ID
+        self.base_url = MAFRA_BASE_URL
         self.session = requests.Session()
         
         # 요청 헤더 설정
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'application/xml, text/xml, */*',
+            'Accept': 'application/json, text/json, */*',
             'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive'
         })
         
-    def build_api_url(self, start_idx: int = 1, end_idx: int = 1000, **kwargs) -> str:
-        """API URL 생성 - 개선된 버전"""
-        url = f"{self.base_url}/{self.api_key}/{self.service_id}/xml/{start_idx}/{end_idx}"
+        # 수집된 데이터 저장
+        self.recipe_basic = []
+        self.recipe_ingredients = []
+        self.recipe_processes = []
         
-        # 추가 파라미터가 있다면 URL 인코딩 후 추가
-        if kwargs:
-            params = []
-            for key, value in kwargs.items():
-                if value:
-                    encoded_value = quote(str(value), safe='')
-                    params.append(f"{key}={encoded_value}")
-            if params:
-                url += "/" + "&".join(params)
-                
-        return url
+    def build_api_url(self, service_id: str, start_idx: int = 1, end_idx: int = 1000) -> str:
+        """API URL 생성"""
+        return f"{self.base_url}/{self.api_key}/json/{service_id}/{start_idx}/{end_idx}"
     
     def test_api_connection(self) -> bool:
         """API 연결 테스트"""
-        test_url = self.build_api_url(1, 5)
+        test_url = self.build_api_url(RECIPE_BASIC_SERVICE_ID, 1, 5)
         try:
             print(f"API 연결 테스트: {test_url}")
             response = self.session.get(test_url, timeout=10)
             print(f"응답 상태코드: {response.status_code}")
-            print(f"응답 헤더: {dict(response.headers)}")
             
             if response.status_code == 200:
-                # XML 파싱 테스트
-                data = xmltodict.parse(response.content)
-                print(f"XML 파싱 성공")
+                data = response.json()
+                print(f"JSON 파싱 성공")
                 
-                if 'COOKRCP01' in data:
-                    if 'row' in data['COOKRCP01']:
-                        rows = data['COOKRCP01']['row']
+                # 응답 구조 확인
+                if RECIPE_BASIC_SERVICE_ID in data:
+                    if 'row' in data[RECIPE_BASIC_SERVICE_ID]:
+                        rows = data[RECIPE_BASIC_SERVICE_ID]['row']
                         if isinstance(rows, list):
                             print(f"테스트 결과: {len(rows)}개 레시피 확인")
                         else:
@@ -69,9 +59,9 @@ class ImprovedRecipeDataCollector:
                         return True
                     else:
                         print("ERROR: 'row' 키가 없습니다.")
-                        print(f"응답 구조: {list(data['COOKRCP01'].keys())}")
+                        print(f"응답 구조: {list(data[RECIPE_BASIC_SERVICE_ID].keys())}")
                 else:
-                    print("ERROR: 'COOKRCP01' 키가 없습니다.")
+                    print(f"ERROR: '{RECIPE_BASIC_SERVICE_ID}' 키가 없습니다.")
                     print(f"응답 구조: {list(data.keys())}")
             else:
                 print(f"HTTP 오류: {response.status_code}")
@@ -83,276 +73,286 @@ class ImprovedRecipeDataCollector:
         
         return False
     
-    def fetch_recipes_batch(self, start_idx: int = 1, end_idx: int = 1000) -> List[Dict[str, Any]]:
-        """레시피 배치 가져오기 - 개선된 버전"""
-        url = self.build_api_url(start_idx, end_idx)
+    def fetch_recipe_basic_data(self) -> List[Dict[str, Any]]:
+        """레시피 기본정보 수집 (537개)"""
+        print("🍳 레시피 기본정보 수집 중...")
+        
+        url = self.build_api_url(RECIPE_BASIC_SERVICE_ID, 1, 1000)
         
         try:
-            print(f"요청: {start_idx}-{end_idx} (총 {end_idx-start_idx+1}개 요청)")
-            print(f"URL: {url}")
-            
+            print(f"요청 URL: {url}")
             response = self.session.get(url, timeout=30)
             response.raise_for_status()
             
-            # 응답 내용 확인
-            if not response.content:
-                print("빈 응답 수신")
-                return []
+            data = response.json()
             
-            # XML을 딕셔너리로 변환
-            try:
-                data = xmltodict.parse(response.content)
-            except Exception as e:
-                print(f"XML 파싱 실패: {e}")
-                print(f"응답 내용 (처음 500자): {response.content[:500]}")
-                return []
-            
-            # 레시피 데이터 추출
-            recipes = []
-            if 'COOKRCP01' in data:
-                cookrcp_data = data['COOKRCP01']
+            if RECIPE_BASIC_SERVICE_ID in data and 'row' in data[RECIPE_BASIC_SERVICE_ID]:
+                rows = data[RECIPE_BASIC_SERVICE_ID]['row']
+                recipes = rows if isinstance(rows, list) else [rows]
                 
-                # 결과 확인
-                if 'RESULT' in cookrcp_data:
-                    result = cookrcp_data['RESULT']
-                    result_code = result.get('CODE', '')
-                    result_msg = result.get('MSG', '')
-                    
-                    if result_code != 'INFO-000':
-                        print(f"API 오류: {result_code} - {result_msg}")
-                        return []
-                
-                # 레시피 행 추출
-                if 'row' in cookrcp_data:
-                    rows = cookrcp_data['row']
-                    if isinstance(rows, list):
-                        recipes = rows
-                    else:
-                        recipes = [rows]  # 단일 항목인 경우
-                        
-                    print(f"✅ 성공: {len(recipes)}개 레시피 수집")
-                else:
-                    print("⚠️ 경고: 'row' 데이터가 없습니다.")
-                    
+                print(f"✅ 레시피 기본정보 수집 완료: {len(recipes)}개")
+                self.recipe_basic = recipes
+                return recipes
             else:
-                print("❌ 오류: 'COOKRCP01' 키가 없습니다.")
-                print(f"응답 키들: {list(data.keys()) if isinstance(data, dict) else 'dict가 아님'}")
-            
-            return recipes
-            
-        except requests.exceptions.RequestException as e:
-            print(f"❌ 네트워크 오류: {e}")
-            return []
+                print("❌ 레시피 기본정보 데이터 없음")
+                return []
+                
         except Exception as e:
-            print(f"❌ 예상치 못한 오류: {e}")
+            print(f"❌ 레시피 기본정보 수집 실패: {e}")
             return []
     
-    def collect_all_recipes_improved(self, total_target: int = 1200) -> List[Dict[str, Any]]:
-        """모든 레시피 데이터 수집 - 개선된 전략"""
-        all_recipes = []
+    def fetch_recipe_ingredient_data(self) -> List[Dict[str, Any]]:
+        """레시피 재료정보 수집 (6104개)"""
+        print("🥕 레시피 재료정보 수집 중...")
+        
+        all_ingredients = []
+        
+        # 1000개씩 분할 수집
+        for start_idx in range(1, 7001, 1000):
+            end_idx = min(start_idx + 999, 7000)
+            url = self.build_api_url(RECIPE_INGREDIENT_SERVICE_ID, start_idx, end_idx)
+            
+            try:
+                print(f"  재료정보 배치 {start_idx}-{end_idx} 수집 중...")
+                response = self.session.get(url, timeout=30)
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                if RECIPE_INGREDIENT_SERVICE_ID in data and 'row' in data[RECIPE_INGREDIENT_SERVICE_ID]:
+                    rows = data[RECIPE_INGREDIENT_SERVICE_ID]['row']
+                    ingredients = rows if isinstance(rows, list) else [rows]
+                    all_ingredients.extend(ingredients)
+                    print(f"  ✅ 배치 {start_idx}-{end_idx}: {len(ingredients)}개 수집")
+                
+                time.sleep(0.5)  # API 과부하 방지
+                
+            except Exception as e:
+                print(f"  ❌ 배치 {start_idx}-{end_idx} 수집 실패: {e}")
+                continue
+        
+        print(f"✅ 레시피 재료정보 수집 완료: {len(all_ingredients)}개")
+        self.recipe_ingredients = all_ingredients
+        return all_ingredients
+    
+    def fetch_recipe_process_data(self) -> List[Dict[str, Any]]:
+        """레시피 과정정보 수집 (3022개)"""
+        print("👨‍🍳 레시피 과정정보 수집 중...")
+        
+        all_processes = []
+        
+        # 1000개씩 분할 수집
+        for start_idx in range(1, 4001, 1000):
+            end_idx = min(start_idx + 999, 4000)
+            url = self.build_api_url(RECIPE_PROCESS_SERVICE_ID, start_idx, end_idx)
+            
+            try:
+                print(f"  과정정보 배치 {start_idx}-{end_idx} 수집 중...")
+                response = self.session.get(url, timeout=30)
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                if RECIPE_PROCESS_SERVICE_ID in data and 'row' in data[RECIPE_PROCESS_SERVICE_ID]:
+                    rows = data[RECIPE_PROCESS_SERVICE_ID]['row']
+                    processes = rows if isinstance(rows, list) else [rows]
+                    all_processes.extend(processes)
+                    print(f"  ✅ 배치 {start_idx}-{end_idx}: {len(processes)}개 수집")
+                
+                time.sleep(0.5)  # API 과부하 방지
+                
+            except Exception as e:
+                print(f"  ❌ 배치 {start_idx}-{end_idx} 수집 실패: {e}")
+                continue
+        
+        print(f"✅ 레시피 과정정보 수집 완료: {len(all_processes)}개")
+        self.recipe_processes = all_processes
+        return all_processes
+    
+    def collect_all_data(self) -> Dict[str, List[Dict[str, Any]]]:
+        """모든 레시피 데이터 수집"""
+        print("🚀 농림축산식품 공공데이터 수집 시작")
         
         # 1단계: API 연결 테스트
-        print("=== 1단계: API 연결 테스트 ===")
+        print("\n=== 1단계: API 연결 테스트 ===")
         if not self.test_api_connection():
             print("❌ API 연결 테스트 실패. 종료합니다.")
-            return []
+            return {}
         
-        print("\n=== 2단계: 전체 데이터 수집 시작 ===")
+        # 2단계: 레시피 기본정보 수집
+        print("\n=== 2단계: 레시피 기본정보 수집 ===")
+        basic_data = self.fetch_recipe_basic_data()
         
-        # 다양한 배치 크기로 시도
-        batch_strategies = [
-            (1, 1000),      # 전체 한번에
-            (1, 500),       # 절반씩
-            (501, 1000),    # 나머지 절반
-            (1, 100),       # 100개씩
-            (101, 200),
-            (201, 300),
-            (301, 400),
-            (401, 500),
-            (501, 600),
-            (601, 700),
-            (701, 800),
-            (801, 900),
-            (901, 1000),
-            (1001, 1100),   # 혹시 1000개 이상이 있는지 확인
-            (1101, 1200),
-        ]
+        # 3단계: 레시피 재료정보 수집
+        print("\n=== 3단계: 레시피 재료정보 수집 ===")
+        ingredient_data = self.fetch_recipe_ingredient_data()
         
-        collected_ids = set()  # 중복 제거용
+        # 4단계: 레시피 과정정보 수집
+        print("\n=== 4단계: 레시피 과정정보 수집 ===")
+        process_data = self.fetch_recipe_process_data()
         
-        for start_idx, end_idx in batch_strategies:
-            print(f"\n--- 배치 {start_idx}-{end_idx} 수집 시도 ---")
-            
-            recipes = self.fetch_recipes_batch(start_idx, end_idx)
-            
-            if recipes:
-                # 중복 제거
-                new_recipes = []
-                for recipe in recipes:
-                    recipe_id = recipe.get('RCP_SEQ', f"no_id_{len(all_recipes)}")
-                    if recipe_id not in collected_ids:
-                        collected_ids.add(recipe_id)
-                        new_recipes.append(recipe)
-                
-                all_recipes.extend(new_recipes)
-                print(f"✅ 새로운 레시피 {len(new_recipes)}개 추가 (누적: {len(all_recipes)}개)")
-                
-                # 목표 달성 시 중단
-                if len(all_recipes) >= total_target:
-                    print(f"🎯 목표 {total_target}개 달성!")
-                    break
-            else:
-                print(f"❌ 배치 {start_idx}-{end_idx}에서 데이터 없음")
-            
-            # API 과부하 방지
-            time.sleep(1)
-        
-        # 3단계: 특정 조건으로 추가 수집 시도
-        if len(all_recipes) < 500:  # 여전히 적다면
-            print("\n=== 3단계: 조건부 검색으로 추가 수집 ===")
-            
-            # 인기 재료들로 검색
-            popular_ingredients = [
-                "쇠고기", "돼지고기", "닭고기", "생선", "두부", "계란", 
-                "감자", "양파", "마늘", "배추", "무", "당근"
-            ]
-            
-            for ingredient in popular_ingredients:
-                print(f"재료 '{ingredient}'로 검색...")
-                recipes = self.fetch_recipes_with_ingredient(ingredient)
-                
-                # 중복 제거 후 추가
-                new_recipes = []
-                for recipe in recipes:
-                    recipe_id = recipe.get('RCP_SEQ', f"ingredient_{ingredient}_{len(all_recipes)}")
-                    if recipe_id not in collected_ids:
-                        collected_ids.add(recipe_id)
-                        new_recipes.append(recipe)
-                
-                if new_recipes:
-                    all_recipes.extend(new_recipes)
-                    print(f"✅ '{ingredient}' 검색으로 {len(new_recipes)}개 추가 (누적: {len(all_recipes)}개)")
-                
-                time.sleep(0.5)  # 짧은 대기
-                
-                if len(all_recipes) >= total_target:
-                    break
-        
-        print(f"\n🎉 최종 수집 완료: {len(all_recipes)}개 레시피")
-        return all_recipes
+        return {
+            'basic': basic_data,
+            'ingredients': ingredient_data,
+            'processes': process_data
+        }
     
-    def fetch_recipes_with_ingredient(self, ingredient: str) -> List[Dict[str, Any]]:
-        """특정 재료로 레시피 검색"""
-        try:
-            recipes = self.fetch_recipes_batch(1, 1000, RCP_PARTS_DTLS=ingredient)
-            return recipes
-        except Exception as e:
-            print(f"재료 '{ingredient}' 검색 실패: {e}")
-            return []
-    
-    def validate_recipe_data(self, recipe: Dict[str, Any]) -> bool:
-        """레시피 데이터 유효성 검사"""
-        required_fields = ['RCP_SEQ', 'RCP_NM']
+    def validate_data_integrity(self) -> Dict[str, Any]:
+        """데이터 무결성 검증"""
+        print("\n📊 데이터 무결성 검증 중...")
         
-        for field in required_fields:
-            if not recipe.get(field):
-                return False
+        # 레시피 코드 추출
+        basic_codes = set()
+        ingredient_codes = set()
+        process_codes = set()
         
-        # 빈 값이나 의미없는 값 체크
-        recipe_name = recipe.get('RCP_NM', '').strip()
-        if not recipe_name or recipe_name in ['-', 'None', '']:
-            return False
-            
-        return True
+        for item in self.recipe_basic:
+            code = item.get('RECIPE_ID') or item.get('레시피일련번호')
+            if code:
+                basic_codes.add(str(code))
+        
+        for item in self.recipe_ingredients:
+            code = item.get('RECIPE_ID') or item.get('레시피일련번호')
+            if code:
+                ingredient_codes.add(str(code))
+        
+        for item in self.recipe_processes:
+            code = item.get('RECIPE_ID') or item.get('레시피일련번호')
+            if code:
+                process_codes.add(str(code))
+        
+        # 무결성 분석
+        integrity_report = {
+            'basic_count': len(basic_codes),
+            'ingredient_count': len(ingredient_codes),
+            'process_count': len(process_codes),
+            'basic_ingredient_match': len(basic_codes & ingredient_codes),
+            'basic_process_match': len(basic_codes & process_codes),
+            'all_match': len(basic_codes & ingredient_codes & process_codes),
+            'orphan_ingredients': len(ingredient_codes - basic_codes),
+            'orphan_processes': len(process_codes - basic_codes)
+        }
+        
+        print(f"✅ 데이터 무결성 분석 완료")
+        print(f"   기본정보 레시피 수: {integrity_report['basic_count']}")
+        print(f"   재료정보 레시피 수: {integrity_report['ingredient_count']}")
+        print(f"   과정정보 레시피 수: {integrity_report['process_count']}")
+        print(f"   기본-재료 매칭: {integrity_report['basic_ingredient_match']}")
+        print(f"   기본-과정 매칭: {integrity_report['basic_process_match']}")
+        print(f"   완전 매칭: {integrity_report['all_match']}")
+        
+        return integrity_report
     
-    def save_recipes_with_metadata(self, recipes: List[Dict[str, Any]], filepath: str):
-        """메타데이터와 함께 레시피 저장"""
-        # 유효성 검사
-        valid_recipes = [recipe for recipe in recipes if self.validate_recipe_data(recipe)]
+    def save_collected_data(self, data: Dict[str, List[Dict[str, Any]]]):
+        """수집된 데이터 저장"""
+        print("\n💾 수집된 데이터 저장 중...")
         
         # 메타데이터 생성
         metadata = {
             'collection_date': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'total_collected': len(recipes),
-            'valid_recipes': len(valid_recipes),
-            'api_source': f"{self.base_url}/{self.service_id}",
-            'collection_strategy': 'improved_batch_collection'
+            'api_source': self.base_url,
+            'api_key_prefix': self.api_key[:10] + '...',
+            'basic_count': len(data.get('basic', [])),
+            'ingredient_count': len(data.get('ingredients', [])),
+            'process_count': len(data.get('processes', [])),
+            'integrity_report': self.validate_data_integrity()
         }
         
-        # 데이터 구조
-        data_with_metadata = {
-            'metadata': metadata,
-            'recipes': valid_recipes
-        }
+        # 개별 파일 저장
+        try:
+            # 기본정보 저장
+            basic_data = {
+                'metadata': metadata,
+                'basic_info': data.get('basic', [])
+            }
+            with open(RECIPE_BASIC_PATH, 'w', encoding='utf-8') as f:
+                json.dump(basic_data, f, ensure_ascii=False, indent=2)
+            print(f"✅ 기본정보 저장: {RECIPE_BASIC_PATH}")
+            
+            # 재료정보 저장
+            ingredient_data = {
+                'metadata': metadata,
+                'ingredient_info': data.get('ingredients', [])
+            }
+            with open(RECIPE_INGREDIENT_PATH, 'w', encoding='utf-8') as f:
+                json.dump(ingredient_data, f, ensure_ascii=False, indent=2)
+            print(f"✅ 재료정보 저장: {RECIPE_INGREDIENT_PATH}")
+            
+            # 과정정보 저장
+            process_data = {
+                'metadata': metadata,
+                'process_info': data.get('processes', [])
+            }
+            with open(RECIPE_PROCESS_PATH, 'w', encoding='utf-8') as f:
+                json.dump(process_data, f, ensure_ascii=False, indent=2)
+            print(f"✅ 과정정보 저장: {RECIPE_PROCESS_PATH}")
+            
+            # 통합 데이터 저장 (기존 시스템 호환성)
+            integrated_data = {
+                'metadata': metadata,
+                'recipes': data.get('basic', [])  # 기본정보를 메인으로 사용
+            }
+            with open(RAW_RECIPES_PATH, 'w', encoding='utf-8') as f:
+                json.dump(integrated_data, f, ensure_ascii=False, indent=2)
+            print(f"✅ 통합 데이터 저장: {RAW_RECIPES_PATH}")
+            
+        except Exception as e:
+            print(f"❌ 데이터 저장 실패: {e}")
+            raise
+    
+    def print_sample_data(self):
+        """샘플 데이터 출력"""
+        print(f"\n📋 샘플 데이터:")
         
-        # 저장
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data_with_metadata, f, ensure_ascii=False, indent=2)
+        if self.recipe_basic:
+            print(f"\n--- 기본정보 샘플 ---")
+            sample = self.recipe_basic[0]
+            for key, value in list(sample.items())[:5]:
+                print(f"  {key}: {value}")
         
-        print(f"\n📊 수집 통계:")
-        print(f"- 총 수집된 레시피: {len(recipes)}개")
-        print(f"- 유효한 레시피: {len(valid_recipes)}개")
-        print(f"- 저장 위치: {filepath}")
+        if self.recipe_ingredients:
+            print(f"\n--- 재료정보 샘플 ---")
+            sample = self.recipe_ingredients[0]
+            for key, value in list(sample.items())[:5]:
+                print(f"  {key}: {value}")
         
-        # 샘플 레시피 정보 출력
-        if valid_recipes:
-            print(f"\n📋 샘플 레시피 정보:")
-            sample = valid_recipes[0]
-            print(f"- ID: {sample.get('RCP_SEQ', 'N/A')}")
-            print(f"- 이름: {sample.get('RCP_NM', 'N/A')}")
-            print(f"- 조리방법: {sample.get('RCP_WAY2', 'N/A')}")
-            print(f"- 카테고리: {sample.get('RCP_PAT2', 'N/A')}")
+        if self.recipe_processes:
+            print(f"\n--- 과정정보 샘플 ---")
+            sample = self.recipe_processes[0]
+            for key, value in list(sample.items())[:5]:
+                print(f"  {key}: {value}")
 
 def main():
     """메인 실행 함수"""
-    if FOOD_SAFETY_API_KEY == "YOUR_API_KEY_HERE":
-        print("❌ config.py에서 FOOD_SAFETY_API_KEY를 설정해주세요!")
-        return
+    print("🚀 농림축산식품 공공데이터 레시피 수집을 시작합니다...")
+    print(f"📍 API 키: {MAFRA_API_KEY[:10]}...")
     
-    print("🚀 개선된 레시피 데이터 수집을 시작합니다...")
-    print(f"📍 API 키: {FOOD_SAFETY_API_KEY[:10]}...")
+    collector = MafraRecipeDataCollector(MAFRA_API_KEY)
     
-    collector = ImprovedRecipeDataCollector(FOOD_SAFETY_API_KEY)
+    # 데이터 수집
+    collected_data = collector.collect_all_data()
     
-    # 개선된 수집 방법으로 데이터 수집
-    recipes = collector.collect_all_recipes_improved(total_target=1000)
-    
-    if recipes:
-        # 메타데이터와 함께 저장
-        collector.save_recipes_with_metadata(recipes, RAW_RECIPES_PATH)
-        print(f"\n✅ 성공: 총 {len(recipes)}개의 레시피를 수집했습니다!")
+    if collected_data:
+        # 무결성 검증
+        collector.validate_data_integrity()
         
-        # 간단한 통계 출력
-        categories = {}
-        cooking_methods = {}
+        # 데이터 저장
+        collector.save_collected_data(collected_data)
         
-        for recipe in recipes:
-            category = recipe.get('RCP_PAT2', '기타')
-            method = recipe.get('RCP_WAY2', '기타')
-            
-            categories[category] = categories.get(category, 0) + 1
-            cooking_methods[method] = cooking_methods.get(method, 0) + 1
+        # 샘플 데이터 출력
+        collector.print_sample_data()
         
-        print(f"\n📈 카테고리별 분포:")
-        for cat, count in sorted(categories.items(), key=lambda x: x[1], reverse=True)[:5]:
-            print(f"  {cat}: {count}개")
-            
-        print(f"\n🍳 조리방법별 분포:")
-        for method, count in sorted(cooking_methods.items(), key=lambda x: x[1], reverse=True)[:5]:
-            print(f"  {method}: {count}개")
+        print(f"\n🎉 데이터 수집 완료!")
+        print(f"   기본정보: {len(collected_data.get('basic', []))}개")
+        print(f"   재료정보: {len(collected_data.get('ingredients', []))}개")
+        print(f"   과정정보: {len(collected_data.get('processes', []))}개")
         
-        print(f"\n📝 수집된 레시피 이름 목록:")
-        for i, recipe in enumerate(recipes, start=1):
-            name = recipe.get('RCP_NM', '이름 없음').strip()
-            print(f"{i:3}. {name}")
-
-            
     else:
-        print("❌ 레시피 데이터 수집에 실패했습니다.")
+        print("❌ 데이터 수집에 실패했습니다.")
         print("\n🔍 문제 해결 방법:")
         print("1. API 키가 올바른지 확인")
         print("2. 인터넷 연결 상태 확인")
-        print("3. 식품안전처 API 서버 상태 확인")
+        print("3. 농림축산식품 공공데이터포털 API 서버 상태 확인")
 
 if __name__ == "__main__":
     main()

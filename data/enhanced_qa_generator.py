@@ -1,8 +1,8 @@
 """
-개선된 QA 데이터셋 생성기
+농림축산식품 데이터 기반 QA 데이터셋 생성기
 - 대용량 고품질 QA 생성
 - 다양한 질문 패턴
-- 챗봇 학습에 최적화된 구조
+- 새로운 데이터 필드 활용
 """
 import json
 import random
@@ -14,9 +14,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import *
 
-class EnhancedQAGenerator:
+class MafraQAGenerator:
     def __init__(self):
-        # 확장된 질문 템플릿
+        # 확장된 질문 템플릿 (농림축산식품 데이터용)
         self.question_templates = {
             'recipe_search': [
                 "{ingredient}로 뭐 만들 수 있어?",
@@ -54,29 +54,29 @@ class EnhancedQAGenerator:
                 "{recipe_name} 재료 목록",
                 "{recipe_name} 사용 재료"
             ],
-            'nutrition': [
-                "{recipe_name} 칼로리가 얼마야?",
-                "{recipe_name} 영양정보 알려줘",
-                "{recipe_name}의 영양성분이 궁금해",
-                "{recipe_name} 열량은?",
-                "{recipe_name} 건강에 어때?",
-                "{recipe_name} 영양소",
-                "{recipe_name} 칼로리 정보",
-                "{recipe_name} 영양 분석",
-                "{recipe_name} 다이어트에 좋아?",
-                "{recipe_name} 영양가"
+            'difficulty': [
+                "{recipe_name} 만들기 어려워?",
+                "{recipe_name} 난이도가 어떻게 돼?",
+                "{recipe_name}는 초보도 할 수 있어?",
+                "{recipe_name} 쉬운 요리야?",
+                "{recipe_name} 어려운 요리야?",
+                "{recipe_name} 만들기 복잡해?",
+                "{recipe_name} 간단한 요리야?",
+                "{recipe_name} 난이도 알려줘",
+                "{recipe_name} 초급자 가능해?",
+                "{recipe_name} 고급 요리야?"
             ],
-            'tips': [
-                "{recipe_name} 만들 때 팁 있어?",
-                "{recipe_name} 조리 팁 알려줘",
-                "{recipe_name} 맛있게 만드는 비법",
-                "{recipe_name} 요리할 때 주의사항",
-                "{recipe_name} 실패하지 않으려면?",
-                "{recipe_name} 요리 노하우",
-                "{recipe_name} 잘 만드는 방법",
-                "{recipe_name} 비법 있어?",
-                "{recipe_name} 팁 좀 줘",
-                "{recipe_name} 요리 꿀팁"
+            'cooking_time': [
+                "{recipe_name} 얼마나 걸려?",
+                "{recipe_name} 조리시간이 어떻게 돼?",
+                "{recipe_name} 만드는데 시간이 얼마나?",
+                "{recipe_name} 빨리 만들 수 있어?",
+                "{recipe_name} 오래 걸려?",
+                "{recipe_name} 조리 시간 알려줘",
+                "{recipe_name} 몇 분 걸려?",
+                "{recipe_name} 시간 많이 걸려?",
+                "{recipe_name} 금방 만들 수 있어?",
+                "{recipe_name} 소요 시간은?"
             ],
             'category': [
                 "{category} 요리 추천해줘",
@@ -102,56 +102,56 @@ class EnhancedQAGenerator:
                 "{method} 요리 목록",
                 "{method} 메뉴"
             ],
-            'difficulty': [
-                "쉬운 요리 추천해줘",
-                "간단한 레시피 알려줘", 
-                "초보도 할 수 있는 요리",
-                "어려운 요리는?",
-                "복잡한 레시피",
-                "시간 오래 걸리는 요리",
-                "빠르게 만들 수 있는 음식",
-                "10분 요리",
-                "간단 요리법",
-                "쉬운 반찬"
+            'difficulty_search': [
+                "{difficulty} 요리 추천해줘",
+                "{difficulty} 레시피 알려줘",
+                "{difficulty} 음식 뭐가 있어?",
+                "{difficulty} 요리 가르쳐줘",
+                "{difficulty} 메뉴 추천",
+                "{difficulty} 만들기",
+                "{difficulty} 요리법",
+                "{difficulty} 음식 종류",
+                "{difficulty} 레시피 목록",
+                "{difficulty} 요리 뭐 있어?"
             ]
         }
         
-        # 일반적인 대화 QA
+        # 일반적인 대화 QA (농림축산식품 버전)
         self.general_qa = [
             {
                 'question': '안녕하세요',
-                'answer': '안녕하세요! 레시피 챗봇입니다. 요리 레시피나 재료에 대해 궁금한 것이 있으시면 언제든 물어보세요! 🍳',
+                'answer': '안녕하세요! 농림축산식품 공공데이터 기반 레시피 챗봇입니다. 요리 레시피나 재료에 대해 궁금한 것이 있으시면 언제든 물어보세요! 🍳',
                 'type': 'greeting'
             },
             {
                 'question': '안녕',
-                'answer': '안녕하세요! 오늘은 어떤 요리를 만들어보고 싶으신가요?',
+                'answer': '안녕하세요! 오늘은 어떤 요리를 만들어보고 싶으신가요? 농림축산식품부 데이터로 정확한 레시피를 알려드릴게요!',
                 'type': 'greeting'
             },
             {
                 'question': '뭐 해줄 수 있어?',
-                'answer': '저는 다음과 같은 도움을 드릴 수 있어요:\n• 재료로 요리 추천\n• 레시피 조리법 안내\n• 요리 재료 정보\n• 영양정보 제공\n• 조리 팁 공유\n무엇을 도와드릴까요?',
+                'answer': '농림축산식품 공공데이터 기반으로 다음과 같은 도움을 드릴 수 있어요:\n• 재료로 요리 추천\n• 레시피 조리법 안내\n• 요리 재료 정보\n• 조리 난이도 및 시간 정보\n• 카테고리별 요리 추천\n무엇을 도와드릴까요?',
                 'type': 'help'
             },
             {
                 'question': '도움말',
-                'answer': '레시피 챗봇 사용법:\n\n1. "감자로 뭐 만들 수 있어?" - 재료로 요리 검색\n2. "김치찌개 만드는 법" - 특정 요리 레시피\n3. "불고기 재료가 뭐야?" - 요리 재료 확인\n4. "계란말이 칼로리" - 영양정보 확인\n\n편하게 물어보세요!',
+                'answer': '농림축산식품 레시피 챗봇 사용법:\n\n1. "감자로 뭐 만들 수 있어?" - 재료로 요리 검색\n2. "김치찌개 만드는 법" - 특정 요리 레시피\n3. "불고기 재료가 뭐야?" - 요리 재료 확인\n4. "계란말이 어려워?" - 난이도 확인\n5. "쉬운 요리 추천해줘" - 난이도별 검색\n\n편하게 물어보세요!',
                 'type': 'help'
             },
             {
                 'question': '오늘 뭐 먹을까?',
-                'answer': '맛있는 요리를 추천해드릴게요! 어떤 재료가 있으신가요? 또는 어떤 종류의 음식을 드시고 싶으신지 알려주세요.',
+                'answer': '맛있는 요리를 추천해드릴게요! 어떤 재료가 있으신가요? 또는 어떤 종류의 음식을 드시고 싶으신지, 난이도는 어떻게 하실지 알려주세요.',
                 'type': 'recommendation'
             },
             {
                 'question': '간단한 요리',
-                'answer': '간단하게 만들 수 있는 요리들을 추천해드릴게요:\n• 계란말이\n• 김치볶음밥\n• 라면\n• 토스트\n• 샐러드\n어떤 재료로 만들고 싶으신가요?',
+                'answer': '쉬운 난이도의 간단한 요리들을 추천해드릴게요! 농림축산식품부 데이터에서 초급자도 쉽게 만들 수 있는 요리들을 찾아드릴게요. 어떤 재료나 카테고리를 원하시나요?',
                 'type': 'recommendation'
             }
         ]
-        
-    def load_enhanced_recipes(self, filepath: str) -> List[Dict[str, Any]]:
-        """개선된 레시피 데이터 로드"""
+    
+    def load_mafra_recipes(self, filepath: str) -> List[Dict[str, Any]]:
+        """농림축산식품 레시피 데이터 로드"""
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -179,7 +179,7 @@ class EnhancedQAGenerator:
             # 유효한 레시피만 필터링
             valid_recipes = []
             for recipe in recipes:
-                if isinstance(recipe, dict) and recipe.get('name') and recipe.get('main_ingredients'):
+                if isinstance(recipe, dict) and recipe.get('name'):
                     valid_recipes.append(recipe)
             
             print(f"🍳 유효한 레시피: {len(valid_recipes)}개")
@@ -189,6 +189,144 @@ class EnhancedQAGenerator:
             print(f"❌ 레시피 로드 실패: {e}")
             return []
     
+    def generate_difficulty_qa(self, recipes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """난이도 관련 QA 생성"""
+        qa_pairs = []
+        
+        print(f"⭐ 난이도 QA 생성 중...")
+        
+        for recipe in recipes:
+            recipe_name = recipe.get('name', '')
+            difficulty = recipe.get('difficulty', '보통')
+            cooking_time = recipe.get('cooking_time', '')
+            
+            if not recipe_name:
+                continue
+            
+            for template in self.question_templates['difficulty']:
+                question = template.format(recipe_name=recipe_name)
+                
+                # 난이도 답변 생성
+                answer_parts = [f"{recipe_name}의 난이도는 '{difficulty}'입니다."]
+                
+                if cooking_time:
+                    answer_parts.append(f"조리 시간은 {cooking_time}입니다.")
+                
+                if difficulty == '쉬움':
+                    answer_parts.append("초급자도 쉽게 만들 수 있는 요리예요!")
+                elif difficulty == '어려움':
+                    answer_parts.append("다소 숙련이 필요한 요리입니다.")
+                else:
+                    answer_parts.append("적당한 난이도의 요리입니다.")
+                
+                answer = '\n'.join(answer_parts)
+                
+                qa_pairs.append({
+                    'question': question,
+                    'answer': answer,
+                    'type': 'difficulty',
+                    'recipe_name': recipe_name,
+                    'related_recipes': [recipe.get('id', '')]
+                })
+        
+        print(f"✅ 난이도 QA {len(qa_pairs)}개 생성")
+        return qa_pairs
+    
+    def generate_cooking_time_qa(self, recipes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """조리시간 관련 QA 생성"""
+        qa_pairs = []
+        
+        print(f"⏰ 조리시간 QA 생성 중...")
+        
+        for recipe in recipes:
+            recipe_name = recipe.get('name', '')
+            cooking_time = recipe.get('cooking_time', '')
+            difficulty = recipe.get('difficulty', '')
+            
+            if not recipe_name or not cooking_time:
+                continue
+            
+            for template in self.question_templates['cooking_time']:
+                question = template.format(recipe_name=recipe_name)
+                
+                # 조리시간 답변 생성
+                answer_parts = [f"{recipe_name}의 조리시간은 {cooking_time}입니다."]
+                
+                if difficulty:
+                    answer_parts.append(f"난이도는 '{difficulty}' 수준입니다.")
+                
+                # 시간에 따른 추가 코멘트
+                if '분' in cooking_time:
+                    time_num = ''.join(filter(str.isdigit, cooking_time))
+                    if time_num and int(time_num) <= 30:
+                        answer_parts.append("비교적 빠르게 만들 수 있는 요리예요!")
+                    elif time_num and int(time_num) >= 60:
+                        answer_parts.append("시간이 조금 걸리는 요리입니다.")
+                
+                answer = '\n'.join(answer_parts)
+                
+                qa_pairs.append({
+                    'question': question,
+                    'answer': answer,
+                    'type': 'cooking_time',
+                    'recipe_name': recipe_name,
+                    'related_recipes': [recipe.get('id', '')]
+                })
+        
+        print(f"✅ 조리시간 QA {len(qa_pairs)}개 생성")
+        return qa_pairs
+    
+    def generate_difficulty_search_qa(self, recipes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """난이도별 검색 QA 생성"""
+        qa_pairs = []
+        
+        print(f"🔍 난이도별 검색 QA 생성 중...")
+        
+        # 난이도별 레시피 그룹화
+        difficulty_recipes = defaultdict(list)
+        for recipe in recipes:
+            difficulty = recipe.get('difficulty', '보통')
+            if difficulty:
+                difficulty_recipes[difficulty].append(recipe)
+        
+        print(f"📊 발견된 난이도: {len(difficulty_recipes)}개")
+        
+        for difficulty, recipe_list in difficulty_recipes.items():
+            if len(recipe_list) >= 2:
+                for template in self.question_templates['difficulty_search']:
+                    question = template.format(difficulty=difficulty)
+                    
+                    # 추천 레시피 선택
+                    recommended = random.sample(recipe_list, min(6, len(recipe_list)))
+                    answer_parts = [f"{difficulty} 난이도의 요리들을 추천해드릴게요:\n"]
+                    
+                    for i, recipe in enumerate(recommended, 1):
+                        recipe_name = recipe.get('name', '알 수 없는 요리')
+                        category = recipe.get('category', '')
+                        cooking_time = recipe.get('cooking_time', '')
+                        
+                        recipe_info = f"{i}. {recipe_name}"
+                        if category:
+                            recipe_info += f" ({category})"
+                        if cooking_time:
+                            recipe_info += f" - {cooking_time}"
+                        
+                        answer_parts.append(recipe_info)
+                    
+                    answer = "\n".join(answer_parts)
+                    
+                    qa_pairs.append({
+                        'question': question,
+                        'answer': answer,
+                        'type': 'difficulty_search',
+                        'difficulty': difficulty,
+                        'related_recipes': [r.get('id', '') for r in recommended]
+                    })
+        
+        print(f"✅ 난이도별 검색 QA {len(qa_pairs)}개 생성")
+        return qa_pairs
+    
+    # 기존 메서드들 (recipe_search, cooking_method, ingredients, category, cooking_method_search)은 동일하게 유지
     def generate_recipe_search_qa(self, recipes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """재료 기반 레시피 검색 QA 생성"""
         qa_pairs = []
@@ -207,24 +345,28 @@ class EnhancedQAGenerator:
         
         # 각 재료에 대해 다양한 질문 생성
         for ingredient, recipe_list in ingredient_recipes.items():
-            if len(recipe_list) >= 1:  # 최소 1개 이상의 레시피
-                # 여러 템플릿 사용
+            if len(recipe_list) >= 1:
                 for template in self.question_templates['recipe_search']:
                     question = template.format(ingredient=ingredient)
                     
-                    # 추천 레시피 선택 (최대 5개)
+                    # 추천 레시피 선택
                     recommended = random.sample(recipe_list, min(5, len(recipe_list)))
                     answer_parts = [f"{ingredient}로 만들 수 있는 요리들을 추천해드릴게요:\n"]
                     
                     for i, recipe in enumerate(recommended, 1):
                         recipe_name = recipe.get('name', '알 수 없는 요리')
                         category = recipe.get('category', '')
-                        cooking_method = recipe.get('cooking_method', '')
+                        difficulty = recipe.get('difficulty', '')
                         
-                        if category and cooking_method:
-                            answer_parts.append(f"{i}. {recipe_name} ({category}, {cooking_method})")
-                        else:
-                            answer_parts.append(f"{i}. {recipe_name}")
+                        recipe_info = f"{i}. {recipe_name}"
+                        if category:
+                            recipe_info += f" ({category}"
+                        if difficulty:
+                            recipe_info += f", {difficulty}"
+                        if category or difficulty:
+                            recipe_info += ")"
+                        
+                        answer_parts.append(recipe_info)
                     
                     answer = "\n".join(answer_parts)
                     
@@ -249,37 +391,42 @@ class EnhancedQAGenerator:
             recipe_name = recipe.get('name', '')
             steps = recipe.get('steps', [])
             
-            if not recipe_name or not steps:
+            if not recipe_name:
                 continue
             
-            # 여러 템플릿으로 질문 생성
             for template in self.question_templates['cooking_method']:
                 question = template.format(recipe_name=recipe_name)
                 
                 # 조리법 답변 생성
                 if steps:
                     steps_text = [f"{recipe_name} 만드는 방법을 알려드릴게요:\n"]
-                    for i, step in enumerate(steps[:8], 1):  # 최대 8단계
+                    for i, step in enumerate(steps[:8], 1):
                         if step.strip():
                             steps_text.append(f"{i}. {step.strip()}")
                     
                     # 추가 정보 포함
                     category = recipe.get('category', '')
-                    cooking_method = recipe.get('cooking_method', '')
+                    difficulty = recipe.get('difficulty', '')
+                    cooking_time = recipe.get('cooking_time', '')
+                    
                     if category:
-                        steps_text.append(f"\n카테고리: {category}")
-                    if cooking_method:
-                        steps_text.append(f"조리방법: {cooking_method}")
+                        steps_text.append(f"\n📂 카테고리: {category}")
+                    if difficulty:
+                        steps_text.append(f"⭐ 난이도: {difficulty}")
+                    if cooking_time:
+                        steps_text.append(f"⏰ 조리시간: {cooking_time}")
                     
                     answer = "\n".join(steps_text)
-                    
-                    qa_pairs.append({
-                        'question': question,
-                        'answer': answer,
-                        'type': 'cooking_method',
-                        'recipe_name': recipe_name,
-                        'related_recipes': [recipe.get('id', '')]
-                    })
+                else:
+                    answer = f"{recipe_name}의 상세한 조리법 정보를 확인하지 못했습니다. 다른 요리를 추천해드릴까요?"
+                
+                qa_pairs.append({
+                    'question': question,
+                    'answer': answer,
+                    'type': 'cooking_method',
+                    'recipe_name': recipe_name,
+                    'related_recipes': [recipe.get('id', '')]
+                })
         
         print(f"✅ 조리법 QA {len(qa_pairs)}개 생성")
         return qa_pairs
@@ -295,7 +442,7 @@ class EnhancedQAGenerator:
             ingredients = recipe.get('ingredients', '')
             main_ingredients = recipe.get('main_ingredients', [])
             
-            if not recipe_name or (not ingredients and not main_ingredients):
+            if not recipe_name:
                 continue
             
             for template in self.question_templates['ingredients']:
@@ -312,6 +459,9 @@ class EnhancedQAGenerator:
                 if ingredients and ingredients != ' '.join(main_ingredients):
                     answer_parts.append(f"\n상세 재료:\n{ingredients}")
                 
+                if not main_ingredients and not ingredients:
+                    answer_parts = [f"{recipe_name}의 재료 정보를 확인하지 못했습니다."]
+                
                 answer = "\n".join(answer_parts)
                 
                 qa_pairs.append({
@@ -323,60 +473,6 @@ class EnhancedQAGenerator:
                 })
         
         print(f"✅ 재료 QA {len(qa_pairs)}개 생성")
-        return qa_pairs
-    
-    def generate_nutrition_qa(self, recipes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """영양정보 QA 생성"""
-        qa_pairs = []
-        
-        print(f"📊 영양정보 QA 생성 중...")
-        
-        for recipe in recipes:
-            recipe_name = recipe.get('name', '')
-            nutrition = recipe.get('nutrition', {})
-            
-            if not recipe_name or not nutrition:
-                continue
-            
-            for template in self.question_templates['nutrition']:
-                question = template.format(recipe_name=recipe_name)
-                
-                # 영양정보 구성
-                nutrition_info = [f"{recipe_name}의 영양정보는 다음과 같아요:\n"]
-                
-                nutrition_labels = {
-                    'calories': '칼로리',
-                    'carbs': '탄수화물', 
-                    'protein': '단백질',
-                    'fat': '지방',
-                    'sodium': '나트륨'
-                }
-                
-                units = {
-                    'calories': 'kcal',
-                    'carbs': 'g',
-                    'protein': 'g', 
-                    'fat': 'g',
-                    'sodium': 'mg'
-                }
-                
-                for key, label in nutrition_labels.items():
-                    if key in nutrition:
-                        unit = units.get(key, '')
-                        nutrition_info.append(f"• {label}: {nutrition[key]}{unit}")
-                
-                if len(nutrition_info) > 1:  # 실제 영양정보가 있는 경우만
-                    answer = "\n".join(nutrition_info)
-                    
-                    qa_pairs.append({
-                        'question': question,
-                        'answer': answer,
-                        'type': 'nutrition',
-                        'recipe_name': recipe_name,
-                        'related_recipes': [recipe.get('id', '')]
-                    })
-        
-        print(f"✅ 영양정보 QA {len(qa_pairs)}개 생성")
         return qa_pairs
     
     def generate_category_qa(self, recipes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -395,7 +491,7 @@ class EnhancedQAGenerator:
         print(f"📊 발견된 카테고리: {len(category_recipes)}개")
         
         for category, recipe_list in category_recipes.items():
-            if len(recipe_list) >= 2:  # 최소 2개 이상
+            if len(recipe_list) >= 2:
                 for template in self.question_templates['category']:
                     question = template.format(category=category)
                     
@@ -405,14 +501,19 @@ class EnhancedQAGenerator:
                     
                     for i, recipe in enumerate(recommended, 1):
                         recipe_name = recipe.get('name', '알 수 없는 요리')
-                        cooking_method = recipe.get('cooking_method', '')
+                        difficulty = recipe.get('difficulty', '')
                         main_ingredients = recipe.get('main_ingredients', [])
                         
-                        if cooking_method and main_ingredients:
+                        recipe_info = f"{i}. {recipe_name}"
+                        if difficulty:
+                            recipe_info += f" ({difficulty}"
+                        if main_ingredients:
                             ingredients_str = ', '.join(main_ingredients[:2])
-                            answer_parts.append(f"{i}. {recipe_name} ({cooking_method}, {ingredients_str})")
-                        else:
-                            answer_parts.append(f"{i}. {recipe_name}")
+                            recipe_info += f", {ingredients_str}"
+                        if difficulty or main_ingredients:
+                            recipe_info += ")"
+                        
+                        answer_parts.append(recipe_info)
                     
                     answer = "\n".join(answer_parts)
                     
@@ -453,10 +554,17 @@ class EnhancedQAGenerator:
                     for i, recipe in enumerate(recommended, 1):
                         recipe_name = recipe.get('name', '알 수 없는 요리')
                         category = recipe.get('category', '')
+                        difficulty = recipe.get('difficulty', '')
+                        
+                        recipe_info = f"{i}. {recipe_name}"
                         if category:
-                            answer_parts.append(f"{i}. {recipe_name} ({category})")
-                        else:
-                            answer_parts.append(f"{i}. {recipe_name}")
+                            recipe_info += f" ({category}"
+                        if difficulty:
+                            recipe_info += f", {difficulty}"
+                        if category or difficulty:
+                            recipe_info += ")"
+                        
+                        answer_parts.append(recipe_info)
                     
                     answer = "\n".join(answer_parts)
                     
@@ -472,8 +580,8 @@ class EnhancedQAGenerator:
         return qa_pairs
     
     def generate_all_qa(self, recipes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """모든 유형의 QA 생성"""
-        print(f"\n🚀 대용량 QA 생성을 시작합니다... (총 레시피: {len(recipes)}개)")
+        """모든 유형의 QA 생성 (농림축산식품 버전)"""
+        print(f"\n🚀 농림축산식품 데이터 기반 QA 생성을 시작합니다... (총 레시피: {len(recipes)}개)")
         
         all_qa = []
         
@@ -488,16 +596,22 @@ class EnhancedQAGenerator:
             print("\n3️⃣ 재료 정보 QA 생성...")
             all_qa.extend(self.generate_ingredients_qa(recipes))
             
-            print("\n4️⃣ 영양정보 QA 생성...")
-            all_qa.extend(self.generate_nutrition_qa(recipes))
-            
-            print("\n5️⃣ 카테고리 QA 생성...")
+            print("\n4️⃣ 카테고리 QA 생성...")
             all_qa.extend(self.generate_category_qa(recipes))
             
-            print("\n6️⃣ 조리방법 검색 QA 생성...")
+            print("\n5️⃣ 조리방법 검색 QA 생성...")
             all_qa.extend(self.generate_cooking_method_search_qa(recipes))
             
-            print("\n7️⃣ 일반 QA 추가...")
+            print("\n6️⃣ 난이도 QA 생성...")
+            all_qa.extend(self.generate_difficulty_qa(recipes))
+            
+            print("\n7️⃣ 조리시간 QA 생성...")
+            all_qa.extend(self.generate_cooking_time_qa(recipes))
+            
+            print("\n8️⃣ 난이도별 검색 QA 생성...")
+            all_qa.extend(self.generate_difficulty_search_qa(recipes))
+            
+            print("\n9️⃣ 일반 QA 추가...")
             all_qa.extend(self.general_qa)
             
         except Exception as e:
@@ -532,7 +646,7 @@ class EnhancedQAGenerator:
         return unique_qa
     
     def save_enhanced_qa_dataset(self, qa_data: List[Dict[str, Any]], filepath: str):
-        """개선된 QA 데이터셋 저장"""
+        """농림축산식품 QA 데이터셋 저장"""
         # 상세 통계 생성
         type_counts = defaultdict(int)
         question_lengths = []
@@ -551,13 +665,16 @@ class EnhancedQAGenerator:
         metadata = {
             'generation_date': __import__('time').strftime('%Y-%m-%d %H:%M:%S'),
             'total_qa_pairs': len(qa_data),
-            'generation_version': '3.0_enhanced',
+            'generation_version': '4.0_mafra',
+            'data_source': '농림축산식품 공공데이터포털',
             'features': [
+                'mafra_data_integration',
                 'multi_template_questions',
                 'detailed_answers',
                 'recipe_categorization',
                 'ingredient_mapping',
-                'nutrition_info',
+                'difficulty_analysis',
+                'cooking_time_info',
                 'cooking_methods'
             ],
             'avg_question_length': sum(question_lengths) / len(question_lengths) if question_lengths else 0,
@@ -595,17 +712,17 @@ class EnhancedQAGenerator:
 
 def main():
     """메인 실행 함수"""
-    print("🚀 개선된 QA 생성을 시작합니다...")
+    print("🚀 농림축산식품 데이터 기반 QA 생성을 시작합니다...")
     
     if not PROCESSED_RECIPES_PATH.exists():
         print(f"❌ 처리된 레시피 파일을 찾을 수 없습니다: {PROCESSED_RECIPES_PATH}")
         print("먼저 enhanced_data_processor.py를 실행해주세요.")
         return
     
-    generator = EnhancedQAGenerator()
+    generator = MafraQAGenerator()
     
     # 레시피 로드
-    recipes = generator.load_enhanced_recipes(PROCESSED_RECIPES_PATH)
+    recipes = generator.load_mafra_recipes(PROCESSED_RECIPES_PATH)
     
     if not recipes:
         print("❌ 유효한 레시피 데이터를 찾을 수 없습니다.")
